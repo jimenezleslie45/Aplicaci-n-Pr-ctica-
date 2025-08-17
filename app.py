@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, field_validator
+import re
 
 app = FastAPI()
 
@@ -8,25 +9,28 @@ class User(BaseModel):
     email: EmailStr
     age: int
 
-    @validator('name')
-    def name_validator(cls, v):
-        if len(v.strip()) < 2:
-            raise ValueError("Minimo 2 caracteres")
-        return v.title()
+    @field_validator('name')
+    @classmethod
+    def valid_name(cls, v: str):
+        if not v or len(v.strip()) < 2:
+            raise ValueError("El nombre debe tener al menos 2 caracteres.")
+        if not v.replace(" ", "").isalpha():
+            raise ValueError("El nombre solo puede contener letras.")
+        return v.strip().title()
 
-    @validator('age')
-    def age_validator(cls, v):
-        if v < 13 or v > 120:
-            raise ValueError("Edad debe ser 13-120")
+    @field_validator('age')
+    @classmethod
+    def valid_age(cls, v: int):
+        if not 15 <= v <= 120:
+            raise ValueError("La edad debe estar entre 15 y 120 años.")
         return v
 
-users_db = []
+# --- NUEVA RUTA AGREGADA PARA LA PÁGINA DE INICIO ---
+@app.get("/")
+def read_root():
+    return {"message": "¡Hola! Mi servidor FastAPI está funcionando."}
 
-@app.post("/register/")
+# --- RUTA EXISTENTE PARA REGISTRO ---
+@app.post("/register")
 async def register(user: User):
-    users_db.append(user)
     return {"message": "Registro exitoso", "user": user}
-
-@app.get("/users/")
-async def get_users():
-    return {"users": users_db}
